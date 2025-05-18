@@ -28,25 +28,47 @@ typedef uint24_t PTR;
 #define OUTPUT_BUFFER_SIZE 256
 
 // Bytecode opcodes
+// typedef enum {
+//     OP_PUSHN,        // Push a number onto the stack
+//     OP_ADD,          // Add two numbers
+//     OP_SUB,          // Subtract
+//     OP_MUL,          // Multiply
+//     OP_DIV,          // Divide
+//     OP_MOD,          // Modulo
+//     OP_SIGN,         // Sign of a number
+//     OP_ALLOCATE,     // Allocate memory on heap
+//     OP_FREE,         // Free memory on heap
+//     OP_BEGIN_WHILE,  // Begin a while loop
+//     OP_END_WHILE,    // End a while loop
+//     OP_STORE,        // Store bytes in memory
+//     OP_LOAD,         // Load bytes from memory
+//     OP_CALL,         // Call a function
+//     OP_LOAD_FRAME_PTR, // Load the frame pointer
+//     OP_MAKE_STACK_FRAME, // Create a stack frame
+//     OP_DROP_STACK_FRAME,  // Drop a stack frame
+//     OP_POPSTR        // Output memory contents to stdout
+// } Opcode;
+
+// Bytecode opcodes
 typedef enum {
-    OP_PUSHN,        // Push a number onto the stack
-    OP_ADD,          // Add two numbers
-    OP_SUB,          // Subtract
-    OP_MUL,          // Multiply
-    OP_DIV,          // Divide
-    OP_MOD,          // Modulo
-    OP_SIGN,         // Sign of a number
-    OP_ALLOCATE,     // Allocate memory on heap
-    OP_FREE,         // Free memory on heap
-    OP_BEGIN_WHILE,  // Begin a while loop
-    OP_END_WHILE,    // End a while loop
-    OP_STORE,        // Store bytes in memory
-    OP_LOAD,         // Load bytes from memory
-    OP_CALL,         // Call a function
-    OP_LOAD_FRAME_PTR, // Load the frame pointer
-    OP_MAKE_STACK_FRAME, // Create a stack frame
-    OP_DROP_STACK_FRAME,  // Drop a stack frame
-    OP_POPSTR        // Output memory contents to stdout
+    OP_PUSHN = 0,        // Push a number onto the stack
+    OP_ADD = 1,          // Add two numbers
+    OP_SUB = 2,          // Subtract
+    OP_MUL = 3,          // Multiply
+    OP_DIV = 4,          // Divide
+    OP_MOD = 5,          // Modulo
+    OP_SIGN = 6,         // Sign of a number
+    OP_ALLOCATE = 7,     // Allocate memory on heap
+    OP_FREE = 8,         // Free memory on heap
+    OP_BEGIN_WHILE = 9,  // Begin a while loop
+    OP_END_WHILE = 10,    // End a while loop
+    OP_STORE = 11,        // Store bytes in memory
+    OP_LOAD = 12,         // Load bytes from memory
+    OP_CALL = 13,         // Call a function
+    OP_LOAD_FRAME_PTR = 14, // Load the frame pointer
+    OP_MAKE_STACK_FRAME = 15, // Create a stack frame
+    OP_DROP_STACK_FRAME = 16,  // Drop a stack frame
+    OP_POPSTR = 17        // Output memory contents to stdout
 } Opcode;
 
 // VM state
@@ -123,6 +145,7 @@ void vm_drop_stack_frame(VM* vm, byte returnSize, byte localScopeSize);
 // Helper functions
 void vm_flush_output(VM* vm);
 void vm_popstr(VM* vm);
+void vm_print_stack(VM* vm, int max_elements, bool print_reverse, int format, const char* message);
 
 // Create a new VM instance
 VM* vm_create() {
@@ -276,6 +299,7 @@ bool vm_run(VM* vm) {
         vm_execute_instruction(vm);
     }
 
+    vm_print_stack(vm, 0, true, 2, "Stack - Bottom to top:");
     // Flush any remaining output
     vm_flush_output(vm);
 
@@ -288,6 +312,7 @@ void vm_execute_instruction(VM* vm) {
 
     byte opcode = vm->program[vm->programCounter++];
 
+    printf("%02x ", opcode);
     switch (opcode) {
         case OP_PUSHN: {
             // Read 16-bit value (little endian)
@@ -714,6 +739,104 @@ void vm_dump_state(VM* vm) {
     for (int i = vm->stackPtr - 1; i >= 0 && i >= vm->stackPtr - 10; i--) {
         printf("    [%d]: %d\n", i, vm->stack[i]);
     }
+}
+
+/**
+ * Print the contents of the VM stack for debugging purposes.
+ *
+ * @param vm The VM instance
+ * @param max_elements Maximum number of elements to print (0 for all)
+ * @param print_reverse If true, print from bottom to top, otherwise top to bottom
+ * @param format Output format: 0 = decimal, 1 = hex, 2 = both
+ * @param message Optional message to display before the stack (NULL for none)
+ */
+void vm_print_stack(VM* vm, int max_elements, bool print_reverse, int format, const char* message) {
+    if (!vm) return;
+
+    // Print optional message
+    if (message) {
+        printf("%s\n", message);
+    }
+
+    // Print stack size information
+    printf("Stack size: %d/%d elements (stackPtr = %d, framePtr = %d)\n",
+           vm->stackPtr, STACK_SIZE, vm->stackPtr, vm->framePtr);
+
+    // If stack is empty
+    if (vm->stackPtr <= 0) {
+        printf("Stack is empty.\n");
+        return;
+    }
+
+    // Calculate how many elements to print
+    int elements_to_print = (max_elements > 0 && max_elements < vm->stackPtr) ?
+                            max_elements : vm->stackPtr;
+
+    // Print column headers based on format
+    printf("\n%-6s | %-8s", "INDEX", format == 0 ? "VALUE(DEC)" :
+                                    (format == 1 ? "VALUE(HEX)" : "VALUE(DEC/HEX)"));
+
+    if (vm->framePtr >= 0) {
+        printf(" | %s", "NOTES");
+    }
+    printf("\n");
+
+    printf("--------------------------------------\n");
+
+    // Print stack elements
+    if (print_reverse) {
+        // Print from bottom to top
+        for (int i = 0; i < elements_to_print; i++) {
+            printf("[%4d] | ", i);
+
+            switch (format) {
+                case 0: // Decimal
+                    printf("%-10d", vm->stack[i]);
+                    break;
+                case 1: // Hex
+                    printf("0x%-8x", vm->stack[i]);
+                    break;
+                case 2: // Both
+                    printf("%-6d (0x%04x)", vm->stack[i], vm->stack[i]);
+                    break;
+            }
+
+            // Mark frame pointer
+            if (i == vm->framePtr) {
+                printf(" | <- frame pointer");
+            }
+
+            printf("\n");
+        }
+    } else {
+        // Print from top to bottom (most recent first)
+        for (int i = vm->stackPtr - 1; i >= vm->stackPtr - elements_to_print; i--) {
+            printf("[%4d] | ", i);
+
+            switch (format) {
+                case 0: // Decimal
+                    printf("%-10d", vm->stack[i]);
+                    break;
+                case 1: // Hex
+                    printf("0x%-8x", vm->stack[i]);
+                    break;
+                case 2: // Both
+                    printf("%-6d (0x%04x)", vm->stack[i], vm->stack[i]);
+                    break;
+            }
+
+            // Mark stack top and frame pointer
+            if (i == vm->stackPtr - 1) {
+                printf(" | <- stack top");
+            } else if (i == vm->framePtr) {
+                printf(" | <- frame pointer");
+            }
+
+            printf("\n");
+        }
+    }
+
+    printf("\n");
 }
 
 // Main function

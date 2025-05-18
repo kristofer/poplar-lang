@@ -1,5 +1,5 @@
-# Countdown program: Loop from 10 down to 1
-# Format: Each byte is represented by two hex characters
-# This program demonstrates while loop functionality
-
-000a000000000206090001000200000002060a
+00 0a 00 
+00 00 00 
+02 06 09 00 01 00 
+02 00 00 00 
+02 06 0a 

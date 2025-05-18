@@ -5,34 +5,35 @@
 // Bytecode opcodes
 typedef enum {
     OP_PUSHN = 0,        // Push a number onto the stack
-    OP_ADD,          // Add two numbers
-    OP_SUB,          // Subtract
-    OP_MUL,          // Multiply
-    OP_DIV,          // Divide
-    OP_MOD,          // Modulo
-    OP_SIGN,         // Sign of a number
-    OP_ALLOCATE,     // Allocate memory on heap
-    OP_FREE,         // Free memory on heap
-    OP_BEGIN_WHILE,  // Begin a while loop
-    OP_END_WHILE,    // End a while loop
-    OP_STORE,        // Store bytes in memory
-    OP_LOAD,         // Load bytes from memory
-    OP_CALL,         // Call a function
-    OP_LOAD_FRAME_PTR, // Load the frame pointer
-    OP_MAKE_STACK_FRAME, // Create a stack frame
-    OP_DROP_STACK_FRAME,  // Drop a stack frame
-    OP_POPSTR        // Output memory contents to stdout
+    OP_ADD = 1,          // Add two numbers
+    OP_SUB = 2,          // Subtract
+    OP_MUL = 3,          // Multiply
+    OP_DIV = 4,          // Divide
+    OP_MOD = 5,          // Modulo
+    OP_SIGN = 6,         // Sign of a number
+    OP_ALLOCATE = 7,     // Allocate memory on heap
+    OP_FREE = 8,         // Free memory on heap
+    OP_BEGIN_WHILE = 9,  // Begin a while loop
+    OP_END_WHILE = 10,    // End a while loop
+    OP_STORE = 11,        // Store bytes in memory
+    OP_LOAD = 12,         // Load bytes from memory
+    OP_CALL = 13,         // Call a function
+    OP_LOAD_FRAME_PTR = 14, // Load the frame pointer
+    OP_MAKE_STACK_FRAME = 15, // Create a stack frame
+    OP_DROP_STACK_FRAME = 16,  // Drop a stack frame
+    OP_POPSTR = 17        // Output memory contents to stdout
 } Opcode;
 
 void write_byte(FILE* file, uint8_t byte) {
     // Write byte as two hex characters
-    fprintf(file, "%02x", byte);
+    fprintf(file, "%02x ", byte);
 }
 
 void write_i16(FILE* file, int16_t value) {
     // Write in little-endian format as hex
     write_byte(file, value & 0xFF);
     write_byte(file, (value >> 8) & 0xFF);
+    fprintf(file, "\n");
 }
 
 void write_u24(FILE* file, uint32_t value) {
@@ -40,6 +41,7 @@ void write_u24(FILE* file, uint32_t value) {
     write_byte(file, value & 0xFF);
     write_byte(file, (value >> 8) & 0xFF);
     write_byte(file, (value >> 16) & 0xFF);
+    fprintf(file, "\n");
 }
 
 // Generate a simple test program: Calculate and print 1+2*3
@@ -101,11 +103,11 @@ void generate_hello_world() {
     // Output the string to stdout (push the pointer and length)
     write_byte(file, OP_PUSHN);    // Push pointer to the memory
     write_i16(file, 0);            // The memory starts at address 0
-    
+
     write_byte(file, OP_PUSHN);    // Push the length of the string
     write_i16(file, length);
-    
-    // Output the string 
+
+    // Output the string
     write_byte(file, OP_POPSTR);
 
     fclose(file);
@@ -222,29 +224,29 @@ void generate_memory_dump() {
     write_byte(file, OP_PUSHN);
     write_i16(file, arraySize);
     write_byte(file, OP_ALLOCATE);
-    
+
     // Store values 0-9 in the array
     for (int i = 0; i < arraySize; i++) {
         // Push the current index value
         write_byte(file, OP_PUSHN);
         write_i16(file, i);
-        
+
         // Store at memory[i]
         write_byte(file, OP_STORE);
         write_u24(file, 1);  // Store 1 byte
     }
-    
+
     // Push pointer to the start of the array (address 0)
     write_byte(file, OP_PUSHN);
     write_i16(file, 0);
-    
+
     // Push the number of bytes to output
     write_byte(file, OP_PUSHN);
     write_i16(file, arraySize);
-    
+
     // Output the memory contents
     write_byte(file, OP_POPSTR);
-    
+
     fclose(file);
     printf("Generated memory_dump.ppx\n");
 }
@@ -277,7 +279,7 @@ int main() {
     generate_memory_dump();
 
     // Add comments to make files more readable
-    add_file_comments();
+    //add_file_comments();
     add_memory_dump_comments();
 
     printf("All test files generated successfully in ASCII hex format.\n");
