@@ -1,0 +1,19 @@
+# Simple math program: Calculate 1+2*3
+# Format: Each byte is represented by two hex characters
+# Opcodes: 00=PUSHN, 04=MUL, 01=ADD
+# Line breaks and comments are ignored by the VM
+
+# PUSHN 1
+00 0100
+
+# PUSHN 2
+00 0200
+
+# PUSHN 3
+00 0300
+
+# MUL (2*3)
+04
+
+# ADD (1+(2*3))
+01

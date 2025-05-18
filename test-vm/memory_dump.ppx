@@ -1,0 +1,6 @@
+# Memory Dump program
+# Format: Each byte is represented by two hex characters
+# This program demonstrates the OP_POPSTR functionality
+# by storing values 0-9 in memory and then outputting them
+
+000a00070000000b0100000001000b0100000002000b0100000003000b0100000004000b0100000005000b0100000006000b0100000007000b0100000008000b0100000009000b010000000000000a0011
