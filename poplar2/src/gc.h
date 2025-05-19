@@ -1,29 +1,23 @@
-// gc.h - Garbage collector for Poplar2
+// gc.h - Simple garbage collector for Poplar2
 
 #ifndef POPLAR2_GC_H
 #define POPLAR2_GC_H
 
-#include "vm.h"
+#include <stddef.h>
 
-// Initialize garbage collector
+// Initialize the garbage collector
 void gc_init();
 
-// Run garbage collection
+// Allocate memory that will be managed by the GC
+void* gc_allocate(size_t size);
+
+// Run the garbage collector
 void gc_collect();
 
-// Allocate object on the heap
-Object* gc_allocate(uint16_t size_in_bytes);
+// Mark an object as reachable (during GC)
+void gc_mark_object(void* object);
 
-// Mark phase
-void gc_mark_roots();
-void gc_mark_object(Value value);
-
-// Sweep phase
-void gc_sweep();
-
-// Statistics
-uint32_t gc_get_free_memory();
-uint32_t gc_get_used_memory();
-uint32_t gc_get_collection_count();
+// Clean up the garbage collector
+void gc_cleanup();
 
 #endif /* POPLAR2_GC_H */

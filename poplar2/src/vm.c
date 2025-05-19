@@ -4,6 +4,7 @@
 #include "object.h"
 #include "interpreter.h"
 #include "gc.h"
+#include "som_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -309,6 +310,37 @@ void vm_error(const char* format, ...) {
     }
 }
 
+// Load a SOM file and execute the 'run' method
+Value vm_load_and_run(const char* filename) {
+    printf("Loading %s...\n", filename);
+    
+    // Parse the SOM file
+    if (!parse_file(filename)) {
+        fprintf(stderr, "Failed to parse SOM file: %s\n", filename);
+        return vm->nil;
+    }
+    
+    // Look for Main class
+    Value main_class = vm_find_class("Main");
+    if (is_nil(main_class)) {
+        fprintf(stderr, "Main class not found in %s\n", filename);
+        return vm->nil;
+    }
+    
+    // Create main instance
+    Value main_instance = make_object(object_new(main_class, 0));
+    
+    // Look for run method
+    Method* run_method = vm_find_method(main_class, "run");
+    if (run_method == NULL) {
+        fprintf(stderr, "run method not found in Main class\n");
+        return vm->nil;
+    }
+    
+    // Invoke run method
+    return vm_execute_method(run_method, main_instance, NULL, 0);
+}
+
 // Main entry point for the VM
 int main(int argc, char** argv) {
     // Initialize VM
@@ -321,52 +353,52 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Load SOM file
+    // Load SOM file and run
     const char* filename = argv[1];
-    printf("Loading %s...\n", filename);
+    
+    // If no SOM parser is available or for testing, use this fallback
+    if (strstr(filename, "--test-hello") != NULL) {
+        // Create test main class
+        Value main_class = make_object(class_new("Main", vm->class_Object, 0));
+        vm->globals[0] = main_class;
 
-    // This would normally parse the SOM file and create classes/methods
-    // For now, we'll just create a simple "main" method that prints "Hello, World!"
+        // Create "run" method
+        Method* run_method = method_new("run", 0, 0);
+        run_method->holder = main_class;
 
-    // Create main class
-    Value main_class = make_object(class_new("Main", vm->class_Object, 0));
+        // Add simple bytecode to print "Hello, World!"
+        uint8_t bytecodes[] = {
+            BC_PUSH_CONSTANT, 0,  // Push string constant
+            BC_PRIMITIVE, 16, 1,  // Primitive 16 (println) with 1 argument
+            BC_PUSH_SPECIAL, SPECIAL_NIL,  // Push nil
+            BC_RETURN_LOCAL        // Return nil
+        };
 
-    // Add to globals
-    vm->globals[0] = main_class;
+        // Copy bytecodes to method
+        memcpy(run_method->bytecode, bytecodes, sizeof(bytecodes));
+        run_method->bytecode_count = sizeof(bytecodes);
 
-    // Create "run" method
-    Method* run_method = method_new("run", 0, 0);
-    run_method->holder = main_class;
+        // Set up literals
+        vm->literals[0] = string_new("Hello, Kristofer From POPLAR2!");
 
-    // Add some simple bytecode to print "Hello, World!"
-    uint8_t bytecodes[] = {
-        BC_PUSH_CONSTANT, 0,  // Push string constant "Hello, World!"
-        BC_PRIMITIVE, 16, 1,  // Primitive 16 (println) with 1 argument
-        BC_PUSH_SPECIAL, SPECIAL_NIL,  // Push nil
-        BC_RETURN_LOCAL        // Return nil
-    };
+        // Add method to class
+        Class* class_obj = (Class*)as_object(main_class);
+        Value methods = class_obj->methods;
 
-    // Copy bytecodes to method
-    memcpy(run_method->bytecode, bytecodes, sizeof(bytecodes));
-    run_method->bytecode_count = sizeof(bytecodes);
+        // Convert methods to an array with the run method
+        Value new_methods = array_new(1);
+        array_at_put(new_methods, 0, make_object((Object*)run_method));
+        class_obj->methods = new_methods;
 
-    // Set up literals
-    vm->literals[0] = string_new("Hello, Kristofer From POPLAR2!");
+        // Create main instance
+        Value main_instance = make_object(object_new(main_class, 0));
 
-    // Add method to class
-    Class* class_obj = (Class*)as_object(main_class);
-    Value methods = class_obj->methods;
-
-    // Convert methods to an array with the run method
-    Value new_methods = array_new(1);
-    array_at_put(new_methods, 0, make_object((Object*)run_method));
-    class_obj->methods = new_methods;
-
-    // Create main instance
-    Value main_instance = make_object(object_new(main_class, 0));
-
-    // Invoke "run" method
-    vm_invoke_method(main_instance, "run", NULL, 0);
+        // Invoke "run" method
+        vm_invoke_method(main_instance, "run", NULL, 0);
+    } else {
+        // Parse and run the SOM file
+        vm_load_and_run(filename);
+    }
 
     // Clean up
     vm_cleanup();

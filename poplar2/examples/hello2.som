@@ -2,6 +2,7 @@
 
 Main = Object (
     run = (
-        <primitive: 16>
+        'Hello, World from SOM!' println.
+        ^nil
     )
 )

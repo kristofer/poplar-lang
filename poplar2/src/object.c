@@ -129,7 +129,20 @@ Value class_get_name(Value class_value) {
 
 // Lookup a method in a class hierarchy
 Method* class_lookup_method(Value class_value, Value selector) {
-    if (!is_object(class_value) || !is_object(selector)) {
+    if (!is_object(class_value)) {
+        return NULL;
+    }
+    
+    // Handle symbols or strings as selector name
+    const char* selector_name = NULL;
+    if (is_object(selector)) {
+        if (as_object(selector)->flags & FLAG_SYMBOL) {
+            selector_name = symbol_to_string(selector);
+        } else if (as_object(selector)->class.bits == vm->class_String.bits) {
+            selector_name = string_to_cstring(selector);
+        }
+    } else if (is_int(selector) || is_special(selector)) {
+        // Cannot lookup with these types
         return NULL;
     }
     
@@ -140,14 +153,26 @@ Method* class_lookup_method(Value class_value, Value selector) {
         
         // Check methods in this class
         Value methods = class->methods;
-        Object* methods_obj = as_object(methods);
-        
-        for (int i = 0; i < methods_obj->size; i++) {
-            Value method_value = methods_obj->fields[i];
-            Method* method = (Method*)as_object(method_value);
+        if (is_object(methods) && (as_object(methods)->flags & FLAG_ARRAY)) {
+            Object* methods_obj = as_object(methods);
             
-            if (value_equals(method->name, selector)) {
-                return method;
+            for (int i = 0; i < methods_obj->size; i++) {
+                Value method_value = methods_obj->fields[i];
+                if (is_object(method_value) && (as_object(method_value)->flags & FLAG_METHOD)) {
+                    Method* method = (Method*)as_object(method_value);
+                    
+                    // Compare by name if we have a string selector
+                    if (selector_name != NULL) {
+                        const char* method_name = symbol_to_string(method->name);
+                        if (strcmp(method_name, selector_name) == 0) {
+                            return method;
+                        }
+                    }
+                    // Otherwise compare values directly
+                    else if (value_equals(method->name, selector)) {
+                        return method;
+                    }
+                }
             }
         }
         
