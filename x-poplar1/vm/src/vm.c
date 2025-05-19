@@ -735,10 +735,11 @@ void vm_load(VM* vm, uint24_t size) {
     if (size <= 0) return;
 
     PTR ptr = vm_stack_pop(vm);
-    vm_stack_push(vm, size);  // Push size onto stack as per spec
+    printf("DEBUG LOAD: Reading %d bytes from address %d\n", (int)size, (int)ptr);
 
     if (ptr + size > HEAP_SIZE) {
-        fprintf(stderr, "Error: Memory access out of bounds\n");
+        fprintf(stderr, "Error: Memory access out of bounds in LOAD (addr=%d, len=%d, heap_size=%d)\n",
+                (int)ptr, (int)size, HEAP_SIZE);
         exit(1);
     }
 
@@ -746,6 +747,10 @@ void vm_load(VM* vm, uint24_t size) {
     for (uint24_t i = 0; i < size; i++) {
         byte value = vm->heap[ptr + i];
         vm_stack_push(vm, (i16)value);  // Push as i16
+        printf("DEBUG LOAD:   [%d] = %02x ('%c') -> pushed to stack\n", 
+               (int)(ptr + i), 
+               (unsigned char)value,
+               isprint(value) ? (char)value : '.');
     }
 }
 

@@ -1,0 +1,33 @@
+# Load Test
+# This program tests the OP_LOAD operation
+# It stores values at memory addresses and then loads them back
+# Note: vm_load pushes bytes in reverse order - last byte first
+
+00 41 00 
+00 64 00 
+0b 01 00 00 
+00 42 00 
+00 65 00 
+0b 01 00 00 
+00 43 00 
+00 66 00 
+0b 01 00 00 
+00 64 00 
+00 03 00 
+11 13 00 64 00 
+0c 01 00 00 
+13 00 65 00 
+0c 01 00 00 
+13 00 66 00 
+0c 01 00 00 
+13 00 64 00 
+0c 03 00 00 
+13 00 c8 00 
+0b 01 00 00 
+00 c9 00 
+0b 01 00 00 
+00 ca 00 
+0b 01 00 00 
+00 c8 00 
+00 03 00 
+11 

@@ -1,0 +1,50 @@
+"
+Hello = (
+    "A simple Hello World example"
+    
+    "The run method is executed when the program starts"
+    run = (
+        'Hello, Agon Light 2 from Poplar2!' println.
+    )
+    
+    "A method that adds two numbers"
+    add: a and: b = (
+        ^a + b
+    )
+    
+    "A method that computes factorial"
+    factorial: n = (
+        "Base case"
+        n <= 1 ifTrue: [^1].
+        
+        "Recursive case"
+        ^n * (self factorial: n - 1)
+    )
+    
+    "A method to draw on the Agon screen"
+    drawRectangle: x y: y width: w height: h color: color = (
+        "Draw top horizontal line"
+        self drawLineFrom: x @ y to: (x + w) @ y color: color.
+        
+        "Draw bottom horizontal line"
+        self drawLineFrom: x @ (y + h) to: (x + w) @ (y + h) color: color.
+        
+        "Draw left vertical line"
+        self drawLineFrom: x @ y to: x @ (y + h) color: color.
+        
+        "Draw right vertical line"
+        self drawLineFrom: (x + w) @ y to: (x + w) @ (y + h) color: color.
+    )
+    
+    "Draw a line between two points"
+    drawLineFrom: p1 to: p2 color: color = (
+        "Use primitive to draw line"
+        ^self primDrawLine: p1 x to: p1 y to: p2 x to: p2 y color: color
+    )
+    
+    "Primitive to draw a line (implemented in VM)"
+    primDrawLine: x1 to: y1 to: x2 to: y2 color: c = (
+        <primitive: 101>
+        self error: 'Primitive failed'
+    )
+)

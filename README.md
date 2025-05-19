@@ -1,119 +1,38 @@
-# Poplar Language
-Poplar is a very simple programming language designed for the Agon platform. It consists of:
+# foundational implementation of the Poplar2 VM for the Agon Light 2
 
-1. A small compiler that translates Poplar source code (.pplr) into human-readable hexadecimal ASCII bytecode files (.ppx)
-2. A virtual machine (VM) that loads and executes the bytecode files (.ppx) on the Agon
+1. **Design Document**: A detailed specification for the Poplar2 VM, including memory layout, object representation, and execution model.
 
-## Project Structure
+2. **Core VM Components**:
+   - Tagged value system for efficient representation of different data types
+   - Object model with classes, methods, and message passing
+   - Stack-based bytecode interpreter
+   - Mark-sweep garbage collector
+   - Primitive operations including Agon-specific graphics functions
 
-- `/vm` - The Poplar virtual machine implementation
-- `/test` - Test programs and utilities for testing the VM
+3. **Implementation Files**:
+   - `vm.h/vm.c`: Core VM definitions and main execution loop
+   - `object.h/object.c`: Object model implementation
+   - `interpreter.h/interpreter.c`: Bytecode interpreter
+   - `gc.h/gc.c`: Garbage collector
+   - `value.c`: Value type handling
+   - `Makefile`: Build configuration
 
-## Data Types
+4. **Sample SOM Program**: A simple Hello World example that demonstrates basic syntax and features.
 
-The Poplar language supports the following data types:
+This implementation is designed to efficiently run on the Agon Light 2 board with its eZ80 processor and limited memory. The VM uses a compact object representation and memory layout optimized for the 24-bit address space of the eZ80.
 
-- **Char**: A single byte
-- **String**: An array of bytes with a 16-bit length (n:i16 bytes)
-- **Int**: 16-bit integer (int-16)
-- **Ptr**: 24-bit pointer (int-24) used for addressing memory
+## Next Steps
 
-## VM Architecture
+To complete this project and get it running on your Agon Light 2 board, you might want to consider:
 
-The virtual machine uses the following internal data structures:
+1. **Parser Implementation**: Add a full SOM language parser to load `.som` files directly.
 
-- **vmStack**: Main stack for operations
-- **vmTemp**: Temporary stack used for frame operations (256 bytes)
-- **vmHeap**: Dynamic memory allocation area
-- **outputBuffer** (outb): Buffer where code can place bytes to send to standard output (puts())
-- **inChar**: Storage for the latest keyboard input character (inchar())
+2. **Agon-Specific Integration**: Implement the platform-specific primitives for graphics, input, and file operations using the Agon's APIs.
 
-## Virtual Machine
+3. **Cross-Compilation Setup**: Configure the build system to properly cross-compile for the eZ80 architecture.
 
-The Poplar VM is implemented in C and designed to run efficiently on the Agon platform. See the [VM documentation](vm/README.md) for detailed information on building and using the VM.
+4. **Standard Library**: Develop a standard library of SOM classes that provide useful functionality.
 
-## Instruction Set
+5. **Testing Framework**: Create tests to verify the VM's functionality.
 
-The following bytecode instructions are supported by the virtual machine (shown with their hexadecimal opcode values):
-
-### Stack Operations
-- `PUSHN (n: i16)` [00]: Push a literal number onto the stack.
-
-### Binary Operations
-- `ADD` [01]: Pop two numbers off of the stack, and push their sum.
-- `SUB` [02]: Pop two numbers off of the stack. Subtract the first from the second, and push the result.
-- `MUL` [04]: Pop two numbers off of the stack, and push their product.
-- `DIV` [05]: Pop two numbers off of the stack. Divide the second by the first, and push the result.
-- `MOD` [06]: Pop two numbers off of the stack. Mod the second by the first and push the result.
-- `SIGN` [07]: Pop a number off of the stack. If it is greater or equal to zero, push 1, otherwise push -1.
-
-### Memory Management
-- `ALLOCATE` [08]: Pop int off of the stack, and return a pointer to that number of free bytes on the heap.
-- `FREE` [09]: Pop a pointer off of the stack. Pop number off of the stack, and free that many bytes at pointer location in memory.
-- `STORE (size: i24)` [0C]: Pop a pointer off of the stack. Then, pop size bytes off of the stack. Store these bytes in reverse order at the memory pointer.
-- `LOAD (size: i24)` [0D]: Pop a pointer off of the stack, and push size onto stack. Then, push size number of consecutive memory bytes onto the stack.
-
-### Control Flow
-- `BEGIN_WHILE` [0A]: Start a while loop. For each iteration, pop a number off of the stack. If the number is not zero, run the loop.
-- `END_WHILE` [0B]: Mark the end of a while loop.
-- `CALL (fn: i16)` [0E]: Call a user defined function by its compiler assigned ID.
-
-### Stack Frame Operations
-- `LOAD_FRAME_PTR` [0F]: Load the frame pointer of the current stack frame, which is always less than or equal to the stack pointer. Variables are stored relative to the frame pointer for each function.
-- `MAKE_STACK_FRAME (arg_size: i8, local_scope_size: i8)` [10]: Create a new stack frame for function calls.
-- `DROP_STACK_FRAME (return_size: i8, local_scope_size: i8)` [11]: Remove a stack frame after function execution completes.
-- `POPSTR` [12]: Pop a pointer off of the stack. Then, pop size bytes off of the stack. Print to standard output the size number of bytes starting at the pointer location in memory.
-
-## Usage
-
-To build the VM:
-```
-cd vm
-make
-```
-
-To run a Poplar bytecode program:
-```
-cd vm
-./poplarvm path/to/program.ppx
-```
-
-## Bytecode Format
-
-Poplar bytecode (.ppx) files use a human-readable hexadecimal ASCII format:
-
-- Each byte is represented as two hexadecimal characters (e.g., `00` for PUSHN opcode)
-- Whitespace and line breaks are ignored and can be used for readability
-- Comments can be added by starting a line with `#`
-
-### Example Bytecode
-```
-# Simple math program: Calculate 1+2*3
-# PUSHN 1
-00 0100
-
-# PUSHN 2
-00 0200
-
-# PUSHN 3
-00 0300
-
-# MUL (2*3)
-04
-
-# ADD (1+(2*3))
-01
-```
-
-This format makes it easy to create, inspect, and modify bytecode files with any text editor.
-
-## Test Programs
-
-The `/test` directory contains utilities for generating test bytecode programs that can be run with the VM:
-```
-cd test
-make run     # Generate test programs
-make test_simple    # Run the simple math test
-make test_hello     # Run the hello world test
-make test_countdown # Run the countdown test
-```
+This implementation is a solid foundation to build upon, adapting the concepts from CSOM to create a VM that is optimized for the constraints of the Agon Light 2 platform.

@@ -1,0 +1,60 @@
+# Makefile for Poplar2 VM
+
+# Compiler settings
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c99 -I/Users/kristofer/agondev/release/include
+LDFLAGS = -L/Users/kristofer/agondev/release/lib
+
+# For Agon Light 2 target
+AGON_CC = ez80-none-elf-clang
+AGON_CFLAGS =
+
+# Source files
+SRC = src/vm.c \
+      src/object.c \
+      src/interpreter.c \
+      src/gc.c \
+      src/value.c
+
+# Object files
+OBJ = $(SRC:.c=.o)
+
+# Output executable
+TARGET = poplar2
+
+# Default target
+all: $(TARGET)
+
+# Compile
+$(TARGET): $(OBJ)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Rule for object files
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Agon Light 2 target
+agon:
+	$(AGON_CC) $(AGON_CFLAGS) -o $(TARGET)_agon.bin $(SRC)
+
+# Clean up
+clean:
+	rm -f $(OBJ) $(TARGET) $(TARGET)_agon.bin *.o *~
+
+# Debug build
+debug: CFLAGS += -g -O0 -DDEBUG
+debug: all
+
+# Optimized build
+release: CFLAGS += -O3 -DNDEBUG
+release: all
+
+# Run the VM
+run: $(TARGET)
+	./$(TARGET) examples/hello.som
+
+# Create directories if they don't exist
+directories:
+	mkdir -p src include lib examples
+
+.PHONY: all clean debug release run agon directories
