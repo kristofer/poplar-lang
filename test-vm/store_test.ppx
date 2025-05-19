@@ -1,0 +1,22 @@
+# Store Test
+# This program stores values at 3 different addresses and then verifies them
+# by dumping the memory contents with OP_POPSTR
+
+00 64 00 
+00 41 00 
+0b 01 00 00 
+00 65 00 
+00 42 00 
+0b 01 00 00 
+00 66 00 
+00 43 00 
+0b 01 00 00 
+13 00 64 00 
+00 01 00 
+11 00 65 00 
+00 01 00 
+11 00 66 00 
+00 01 00 
+11 00 64 00 
+00 03 00 
+11 

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 // Bytecode opcodes
 typedef enum {
@@ -20,8 +21,10 @@ typedef enum {
     OP_CALL = 13,         // Call a function
     OP_LOAD_FRAME_PTR = 14, // Load the frame pointer
     OP_MAKE_STACK_FRAME = 15, // Create a stack frame
-    OP_DROP_STACK_FRAME = 16,  // Drop a stack frame
-    OP_POPSTR = 17        // Output memory contents to stdout
+    OP_DROP_STACK_FRAME = 16,  //x0F Drop a stack frame
+    OP_POPSTR = 17, //x11 Output memory contents to stdout
+    OP_DUP = 18, //x12 // dupe the TOS
+    OP_BREAKPT = 19 //x13 // print the stack
 } Opcode;
 
 void write_byte(FILE* file, uint8_t byte) {
@@ -89,6 +92,7 @@ void generate_hello_world() {
     write_byte(file, OP_PUSHN);
     write_i16(file, length);
     write_byte(file, OP_ALLOCATE);
+    write_byte(file, OP_DUP); // for the print below;
 
     // Push each character onto the stack in reverse order
     for (int i = length - 1; i >= 0; i--) {
@@ -101,8 +105,7 @@ void generate_hello_world() {
     write_u24(file, length);
 
     // Output the string to stdout (push the pointer and length)
-    write_byte(file, OP_PUSHN);    // Push pointer to the memory
-    write_i16(file, 0);            // The memory starts at address 0
+    // the pointer should be duped, and now at TOS;
 
     write_byte(file, OP_PUSHN);    // Push the length of the string
     write_i16(file, length);
@@ -167,12 +170,12 @@ void add_file_comments() {
 
     fprintf(file, "# Simple math program: Calculate 1+2*3\n");
     fprintf(file, "# Format: Each byte is represented by two hex characters\n");
-    fprintf(file, "# Opcodes: 00=PUSHN, 04=MUL, 01=ADD\n");
+    fprintf(file, "# Opcodes: 00=PUSHN, 03=MUL, 01=ADD\n");
     fprintf(file, "# Line breaks and comments are ignored by the VM\n\n");
     fprintf(file, "# PUSHN 1\n00 0100\n\n");
     fprintf(file, "# PUSHN 2\n00 0200\n\n");
     fprintf(file, "# PUSHN 3\n00 0300\n\n");
-    fprintf(file, "# MUL (2*3)\n04\n\n");
+    fprintf(file, "# MUL (2*3)\n03\n\n");
     fprintf(file, "# ADD (1+(2*3))\n01\n");
     fclose(file);
 
@@ -219,36 +222,101 @@ void generate_memory_dump() {
         exit(1);
     }
 
-    // Allocate memory for a sample array
-    int arraySize = 10;
+    const char* message = "Memory dump test string!";
+    int length = strlen(message);  // Length of the string
+
+    // Allocate memory for the string
     write_byte(file, OP_PUSHN);
-    write_i16(file, arraySize);
+    write_i16(file, length);
     write_byte(file, OP_ALLOCATE);
+    write_byte(file, OP_DUP);  // Duplicate the pointer for later use
 
-    // Store values 0-9 in the array
-    for (int i = 0; i < arraySize; i++) {
-        // Push the current index value
+    // Push each character onto the stack in reverse order
+    for (int i = length - 1; i >= 0; i--) {
         write_byte(file, OP_PUSHN);
-        write_i16(file, i);
-
-        // Store at memory[i]
-        write_byte(file, OP_STORE);
-        write_u24(file, 1);  // Store 1 byte
+        write_i16(file, message[i]);
     }
 
-    // Push pointer to the start of the array (address 0)
-    write_byte(file, OP_PUSHN);
-    write_i16(file, 0);
+    // Store the characters in memory
+    write_byte(file, OP_STORE);
+    write_u24(file, length);
+
+    // The pointer is already on the stack (from the DUP)
 
     // Push the number of bytes to output
     write_byte(file, OP_PUSHN);
-    write_i16(file, arraySize);
+    write_i16(file, length);
 
     // Output the memory contents
     write_byte(file, OP_POPSTR);
 
     fclose(file);
     printf("Generated memory_dump.ppx\n");
+}
+
+// Generate a very simple test program to prove OP_POPSTR works
+void generate_simple_print() {
+    FILE* file = fopen("simple_print.ppx", "w");
+    if (!file) {
+        perror("Failed to create output file");
+        exit(1);
+    }
+
+    const char* message = "Simple print test!";
+    int length = strlen(message);
+
+    // Push each byte of the string directly into memory location 100-117
+    for (int i = 0; i < length; i++) {
+        // Push the memory address (100 + i)
+        write_byte(file, OP_PUSHN);
+        write_i16(file, 100 + i);
+        
+        // Push the character
+        write_byte(file, OP_PUSHN);
+        write_i16(file, message[i]);
+        
+        // Store just one byte
+        write_byte(file, OP_STORE);
+        write_u24(file, 1);
+    }
+    
+    // Push the base address (100)
+    write_byte(file, OP_PUSHN);
+    write_i16(file, 100);
+    
+    // Push the length
+    write_byte(file, OP_PUSHN);
+    write_i16(file, length);
+    
+    // Print debug
+    write_byte(file, OP_BREAKPT);
+    
+    // Output the string
+    write_byte(file, OP_POPSTR);
+
+    fclose(file);
+    printf("Generated simple_print.ppx\n");
+}
+
+// Add comments to simple_print.ppx
+void add_simple_print_comments() {
+    FILE* file = fopen("simple_print.ppx", "r+");
+    if (!file) return;
+
+    char buffer[1024];
+    size_t bytes_read = fread(buffer, 1, sizeof(buffer) - 1, file);
+    buffer[bytes_read] = '\0';
+    fclose(file);
+
+    file = fopen("simple_print.ppx", "w");
+    if (!file) return;
+
+    fprintf(file, "# Simple Print Test\n");
+    fprintf(file, "# This is the simplest possible test of OP_POPSTR\n");
+    fprintf(file, "# It writes directly to fixed memory locations (100-117)\n");
+    fprintf(file, "# and then uses OP_POPSTR to print it\n\n");
+    fprintf(file, "%s", buffer);
+    fclose(file);
 }
 
 // Add comments to memory_dump.ppx
@@ -267,20 +335,23 @@ void add_memory_dump_comments() {
     fprintf(file, "# Memory Dump program\n");
     fprintf(file, "# Format: Each byte is represented by two hex characters\n");
     fprintf(file, "# This program demonstrates the OP_POPSTR functionality\n");
-    fprintf(file, "# by storing values 0-9 in memory and then outputting them\n\n");
+    fprintf(file, "# by storing a text string in memory and then outputting it\n\n");
     fprintf(file, "%s", buffer);
     fclose(file);
 }
+
 
 int main() {
     generate_simple_math();
     generate_hello_world();
     generate_countdown();
     generate_memory_dump();
+    generate_simple_print();
 
     // Add comments to make files more readable
     //add_file_comments();
     add_memory_dump_comments();
+    add_simple_print_comments();
 
     printf("All test files generated successfully in ASCII hex format.\n");
     return 0;

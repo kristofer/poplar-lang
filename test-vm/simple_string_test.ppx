@@ -1,0 +1,21 @@
+# Simple String Test
+# This program stores and prints a simple string using OP_POPSTR
+# with the corrected vm_store behavior
+
+00 0d 00 
+07 12 00 48 00 
+00 65 00 
+00 6c 00 
+00 6c 00 
+00 6f 00 
+00 2c 00 
+00 20 00 
+00 77 00 
+00 6f 00 
+00 72 00 
+00 6c 00 
+00 64 00 
+00 21 00 
+0b 0d 00 00 
+13 00 0d 00 
+11 

@@ -2,24 +2,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <string.h>
 
 // Define types for Agon
 typedef uint8_t byte;
 typedef int16_t i16;
 typedef uint16_t u16;
-// Use pre-defined uint24_t from stdint.h
+// Platform definitions
 #define DARWIN
 //#define AGON
+// Define pointer type based on platform
 #ifdef DARWIN
 typedef uint64_t PTR;
 typedef uint64_t uint24_t;
-#endif
-#ifdef AGON
+#elif defined(AGON)
 typedef uint24_t PTR;
+#else
+typedef uint32_t PTR; // Default to 32-bit pointer
 #endif
+
 
 // Define VM constants
 #define STACK_SIZE 1024
@@ -61,14 +64,16 @@ typedef enum {
     OP_ALLOCATE = 7,     // Allocate memory on heap
     OP_FREE = 8,         // Free memory on heap
     OP_BEGIN_WHILE = 9,  // Begin a while loop
-    OP_END_WHILE = 10,    // End a while loop
-    OP_STORE = 11,        // Store bytes in memory
-    OP_LOAD = 12,         // Load bytes from memory
-    OP_CALL = 13,         // Call a function
-    OP_LOAD_FRAME_PTR = 14, // Load the frame pointer
-    OP_MAKE_STACK_FRAME = 15, // Create a stack frame
-    OP_DROP_STACK_FRAME = 16,  // Drop a stack frame
-    OP_POPSTR = 17        // Output memory contents to stdout
+    OP_END_WHILE = 10,  //A  // End a while loop
+    OP_STORE = 11,     //B   // Store bytes in memory
+    OP_LOAD = 12,      //C   // Load bytes from memory
+    OP_CALL = 13,      //D   // Call a function
+    OP_LOAD_FRAME_PTR = 14, //E // Load the frame pointer
+    OP_MAKE_STACK_FRAME = 15, //F // Create a stack frame
+    OP_DROP_STACK_FRAME = 16, //10  // Drop a stack frame
+    OP_POPSTR = 17, //11 // Output memory contents to stdout
+    OP_DUP = 18, //12 // dupe the TOS
+    OP_BREAKPT = 19 // print the stack
 } Opcode;
 
 // VM state
@@ -111,10 +116,13 @@ void vm_destroy(VM* vm);
 bool vm_load_program(VM* vm, const char* filename);
 bool vm_run(VM* vm);
 void vm_dump_state(VM* vm);
+// Execute the current instruction
+void vm_execute_instruction(VM* vm);
 
 // Stack operations
 void vm_stack_push(VM* vm, i16 value);
 i16 vm_stack_pop(VM* vm);
+void vm_stack_dupe(VM* vm);
 void vm_temp_stack_push(VM* vm, i16 value);
 i16 vm_temp_stack_pop(VM* vm);
 
@@ -122,9 +130,9 @@ i16 vm_temp_stack_pop(VM* vm);
 PTR vm_heap_allocate(VM* vm, size_t size);
 void vm_heap_free(VM* vm, PTR ptr, size_t size);
 
-// Instruction implementations
+// VM operations
 void vm_execute_instruction(VM* vm);
-void vm_pushn(VM* vm, i16 n);
+void vm_pushn(VM* vm, i16 value);
 void vm_add(VM* vm);
 void vm_subtract(VM* vm);
 void vm_multiply(VM* vm);
@@ -145,7 +153,9 @@ void vm_drop_stack_frame(VM* vm, byte returnSize, byte localScopeSize);
 // Helper functions
 void vm_flush_output(VM* vm);
 void vm_popstr(VM* vm);
+void vm_print_opcode(byte op);
 void vm_print_stack(VM* vm, int max_elements, bool print_reverse, int format, const char* message);
+void test_print_opcodes(void);
 
 // Create a new VM instance
 VM* vm_create() {
@@ -306,13 +316,88 @@ bool vm_run(VM* vm) {
     return true;
 }
 
+/**
+ * Print the string representation of an opcode.
+ *
+ * @param op The opcode byte value to convert to string and print
+ */
+void vm_print_opcode(byte op) {
+    char *outp;
+    switch (op) {
+        case OP_PUSHN:
+            outp = "PUSHN";
+            break;
+        case OP_ADD:
+            outp = "ADD";
+            break;
+        case OP_SUB:
+            outp = "SUB";
+            break;
+        case OP_MUL:
+            outp = "MUL";
+            break;
+        case OP_DIV:
+            outp = "DIV";
+            break;
+        case OP_MOD:
+            outp = "MOD";
+            break;
+        case OP_SIGN:
+            outp = "SIGN";
+            break;
+        case OP_ALLOCATE:
+            outp = "ALLOCATE";
+            break;
+        case OP_FREE:
+            outp = "FREE";
+            break;
+        case OP_BEGIN_WHILE:
+            outp = "BEGIN_WHILE";
+            break;
+        case OP_END_WHILE:
+            outp = "END_WHILE";
+            break;
+        case OP_STORE:
+            outp = "STORE";
+            break;
+        case OP_LOAD:
+            outp = "LOAD";
+            break;
+        case OP_CALL:
+            outp = "CALL";
+            break;
+        case OP_LOAD_FRAME_PTR:
+            outp = "LOAD_FRAME_PTR";
+            break;
+        case OP_MAKE_STACK_FRAME:
+            outp = "MAKE_STACK_FRAME";
+            break;
+        case OP_DROP_STACK_FRAME:
+            outp = "DROP_STACK_FRAME";
+            break;
+        case OP_POPSTR:
+            outp = "POPSTR";
+            break;
+        case OP_DUP:
+            outp = "DUP";
+            break;
+        case OP_BREAKPT:
+            outp = "BREAKPT";
+            break;
+        default:
+            outp = "UNKNOWN";
+            break;
+    }
+    printf("%s ", outp);
+}
+
 // Execute the current instruction
 void vm_execute_instruction(VM* vm) {
     if (vm->programCounter >= vm->programSize) return;
 
     byte opcode = vm->program[vm->programCounter++];
 
-    printf("%02x ", opcode);
+    vm_print_opcode(opcode);
     switch (opcode) {
         case OP_PUSHN: {
             // Read 16-bit value (little endian)
@@ -397,6 +482,15 @@ void vm_execute_instruction(VM* vm) {
             vm_popstr(vm);
             break;
         }
+        case OP_DUP: {
+            vm_stack_dupe(vm);
+            break;
+        }
+        case OP_BREAKPT: {
+            vm_print_stack(vm, 0, true, 2, "Stack - Bottom to top:");
+            vm_dump_state(vm);
+            break;
+        }
         default:
             fprintf(stderr, "Error: Unknown opcode %d at position %zu\n",
                     opcode, vm->programCounter - 1);
@@ -420,6 +514,12 @@ i16 vm_stack_pop(VM* vm) {
         exit(1);
     }
     return vm->stack[--vm->stackPtr];
+}
+
+void vm_stack_dupe(VM* vm) {
+    i16 t = vm_stack_pop(vm);
+    vm_stack_push(vm, t);
+    vm_stack_push(vm, t);
 }
 
 void vm_temp_stack_push(VM* vm, i16 value) {
@@ -530,7 +630,7 @@ void vm_free(VM* vm) {
         exit(1);
     }
 
-    vm_heap_free(vm, ptr, (size_t)size);
+    vm_heap_free(vm, ptr, size);
 }
 
 void vm_begin_while(VM* vm) {
@@ -601,16 +701,33 @@ void vm_end_while(VM* vm) {
 void vm_store(VM* vm, uint24_t size) {
     if (size <= 0) return;
 
+    // First pop the values to be stored, in reverse order
+    i16 values[256]; // Maximum number of bytes we'd reasonably store at once
+    if (size > 256) {
+        fprintf(stderr, "Error: Cannot store more than 256 bytes at once\n");
+        exit(1);
+    }
+    
+    for (uint24_t i = 0; i < size; i++) {
+        values[i] = vm_stack_pop(vm);
+    }
+    
+    // Then pop the address where to store them
     PTR ptr = vm_stack_pop(vm);
+    printf("DEBUG STORE: Writing %d bytes to address %d\n", (int)size, (int)ptr);
+    
     if (ptr + size > HEAP_SIZE) {
         fprintf(stderr, "Error: Memory access out of bounds\n");
         exit(1);
     }
 
-    // Pop values from stack and store them in memory in reverse order
+    // Store the values in memory
     for (uint24_t i = 0; i < size; i++) {
-        i16 value = vm_stack_pop(vm);
-        vm->heap[ptr + i] = (byte)value;  // Store as byte
+        vm->heap[ptr + i] = (byte)values[size - 1 - i];  // Store as byte
+        printf("DEBUG STORE:   [%d] = %02x ('%c')\n", 
+               (int)(ptr + i), 
+               (unsigned char)values[size - 1 - i],
+               isprint(values[size - 1 - i]) ? (char)values[size - 1 - i] : '.');
     }
 }
 
@@ -718,15 +835,47 @@ void vm_popstr(VM* vm) {
     // Pop the memory address to start from
     i16 address = vm_stack_pop(vm);
 
+    printf("DEBUG OP_POPSTR: address=%d, length=%d\n", address, numBytes);
+
     // Check bounds
     if (address < 0 || address + numBytes > HEAP_SIZE) {
-        fprintf(stderr, "Error: Memory access out of bounds in POPSTR\n");
+        fprintf(stderr, "Error: Memory access out of bounds in POPSTR (addr=%d, len=%d, heap_size=%d)\n",
+                address, numBytes, HEAP_SIZE);
         return;
     }
 
-    // Output the memory contents to stdout
-    fwrite(&vm->heap[address], 1, numBytes, stdout);
-    fflush(stdout);
+    // Create a simple null-terminated string buffer
+    char* buffer = (char*)malloc(numBytes + 1);
+    if (!buffer) {
+        fprintf(stderr, "Error: Failed to allocate memory for string in POPSTR\n");
+        return;
+    }
+
+    // Copy memory contents to the buffer
+    memcpy(buffer, &vm->heap[address], numBytes);
+    buffer[numBytes] = '\0';
+
+    // Debug: Print memory contents
+    printf("DEBUG MEMORY DUMP:\n");
+    for (int i = 0; i < numBytes; i++) {
+        printf("  heap[%d] = %02x ('%c')\n", 
+               address + i, 
+               (unsigned char)vm->heap[address + i],
+               isprint(vm->heap[address + i]) ? vm->heap[address + i] : '.');
+    }
+    
+    // Print the string and a newline
+    printf("OUTPUT: %s\n", buffer);
+
+    // Debug: print the hex representation
+    printf("DEBUG HEX: ");
+    for (int i = 0; i < numBytes; i++) {
+        printf("%02x ", (unsigned char)buffer[i]);
+    }
+    printf("\n");
+
+    // Free the buffer
+    free(buffer);
 }
 
 void vm_dump_state(VM* vm) {
@@ -750,6 +899,7 @@ void vm_dump_state(VM* vm) {
  * @param format Output format: 0 = decimal, 1 = hex, 2 = both
  * @param message Optional message to display before the stack (NULL for none)
  */
+// Debug function to print the VM stack
 void vm_print_stack(VM* vm, int max_elements, bool print_reverse, int format, const char* message) {
     if (!vm) return;
 
@@ -839,10 +989,31 @@ void vm_print_stack(VM* vm, int max_elements, bool print_reverse, int format, co
     printf("\n");
 }
 
+/**
+ * Test function to demonstrate opcode printing
+ */
+void test_print_opcodes(void) {
+    printf("Printing all opcodes:\n");
+    for (int i = 0; i < 20; i++) {
+        printf("%2d: ", i);
+        vm_print_opcode(i);
+        printf("\n");
+    }
+    printf("\n");
+}
+
 // Main function
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
+    // Check for -print-opcodes flag
+    if (argc == 2 && strcmp(argv[1], "-print-opcodes") == 0) {
+        test_print_opcodes();
+        return 0;
+    }
+
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <program.ppx>\n", argv[0]);
+        fprintf(stderr, "Usage: %s [options] <program.ppx>\n", argv[0]);
+        fprintf(stderr, "\nOptions:\n");
+        fprintf(stderr, "  -print-opcodes   Print all opcode values and their names\n");
         fprintf(stderr, "\nNote: Program files (.ppx) should be in hexadecimal ASCII format\n");
         fprintf(stderr, "Each byte is represented by two hex characters (e.g., '00' for opcode PUSHN)\n");
         fprintf(stderr, "Comments starting with # and whitespace are ignored\n");
