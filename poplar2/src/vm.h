@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include "value.h"
 
+#define DBUG 1
+
 // Memory limits and configuration for Agon Light 2
 #define HEAP_START          0x020000
 #define HEAP_SIZE           0x060000  // 384KB heap

@@ -13,6 +13,7 @@ typedef enum {
     TOKEN_IDENTIFIER,    // Identifier
     TOKEN_KEYWORD,       // Keyword (ending with ':')
     TOKEN_INTEGER,       // Integer literal
+    TOKEN_COMMENT,       // comment literal \".*\"
     TOKEN_STRING,        // String literal
     TOKEN_SYMBOL,        // Symbol literal (#symbol)
     TOKEN_OPERATOR,      // Operator (+, -, *, /, etc.)

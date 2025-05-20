@@ -76,8 +76,8 @@ static void skip_whitespace(Lexer* lexer) {
         char c = peek(lexer);
         switch (c) {
             case ' ':
-            case '\t':
             case '\r':
+            case '\t':
                 advance(lexer);
                 break;
             case '\n':
@@ -85,21 +85,23 @@ static void skip_whitespace(Lexer* lexer) {
                 lexer->column = 0;
                 advance(lexer);
                 break;
-            case '"': // Skip comments
-                // A comment starts with a single quote and ends with another quote
-                advance(lexer); // Consume the opening quote
+            case '"':
+                // This is a comment - consume the opening quote
+                advance(lexer);
 
+                // Continue until we find the closing quote or reach EOF
                 while (!is_at_end(lexer)) {
                     if (peek(lexer) == '"') {
                         advance(lexer); // Consume the closing quote
-                        break;
+                        break;     // Exit the comment-consuming loop
                     }
 
                     if (peek(lexer) == '\n') {
                         lexer->line++;
                         lexer->column = 0;
-                        advance(lexer);
                     }
+
+                    advance(lexer);
                 }
                 break;
             default:
@@ -365,19 +367,32 @@ static void init_parser(Parser* parser, const char* source, const char* filename
     parser->had_error = false;
     parser->panic_mode = false;
     parser->class_index = 0;
+    if (DBUG) {
+        printf("init_parser\n");
+    }
 
     // Prime the parser with the first token
     advance_token(parser);
 }
 
 static void advance_token(Parser* parser) {
+    if (DBUG) {
+        printf("advance_token: ");
+    }
     parser->previous = parser->current;
 
     for (;;) {
         parser->current = scan_token(&parser->lexer);
+        if (DBUG) {
+            printf("tok: %s in loop\n", token_type_to_string(parser->current.type));
+        }
+
         if (parser->current.type != TOKEN_ERROR) break;
 
         error_at_current(parser, parser->current.text);
+    }
+    if (DBUG) {
+        printf("tok: %s\n", token_type_to_string(parser->current.type));
     }
 }
 
@@ -668,7 +683,9 @@ bool parse_file(const char* filename) {
     fseek(file, 0L, SEEK_END);
     size_t file_size = ftell(file);
     fseek(file, 0L, SEEK_SET);
-
+    if (DBUG) {
+        printf("parse_file: %s %d\n", filename, file_size);
+    }
     // Read the file
     char* source = (char*)malloc(file_size + 1);
     if (source == NULL) {
@@ -679,6 +696,9 @@ bool parse_file(const char* filename) {
 
     size_t bytes_read = fread(source, sizeof(char), file_size, file);
     source[bytes_read] = '\0';
+    if (DBUG) {
+        printf("parse_file: read: %d =? %d\n", bytes_read, file_size);
+    }
 
     fclose(file);
 
@@ -691,12 +711,16 @@ bool parse_file(const char* filename) {
 bool parse_string(const char* source, const char* name) {
     Parser parser;
     init_parser(&parser, source, name);
+    if (DBUG) {
+        printf("parse_string: after init\n");
+    }
 
     // Skip any initial comments at the beginning of the file
-    while (parser.current.type == TOKEN_STRING &&
-           parser.current.text[0] == '"') {
-        advance_token(&parser);
-    }
+        // while (parser.current.type == TOKEN_COMMENT &&
+        //        parser.current.text[0] == '"') {
+        //     advance_token(&parser);
+        // }
+    // ^^this should be handled by the normal operations;
 
     // Parse the class definition
     Value class = parse_class_definition(&parser);
