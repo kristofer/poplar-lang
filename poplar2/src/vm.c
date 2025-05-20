@@ -152,55 +152,6 @@ void register_global(const char* name, Value value) {
     vm_error("Globals table is full, cannot register global %s", name);
 }
 
-// // Create core classes in a mutually recursive way
-// void vm_bootstrap_core_classes() {
-//     // First create Class class
-//     Object* class_class_obj = object_new(make_special(SPECIAL_NIL), sizeof(Class) / sizeof(Value));
-//     Class* class_class = (Class*)class_class_obj;
-//     class_class_obj->flags |= FLAG_CLASS;
-//     class_class->name = make_special(SPECIAL_NIL); // Will be set later
-//     class_class->superclass = make_special(SPECIAL_NIL); // Will be set to Object
-//     class_class->methods = make_special(SPECIAL_NIL); // Will be set later
-//     class_class->instance_size = make_int(sizeof(Object) / sizeof(Value));
-
-//     // Temporarily store Class in VM
-//     vm->class_Class = make_object(class_class_obj);
-
-//     // Now create Object class
-//     Object* object_class_obj = object_new(vm->class_Class, sizeof(Class) / sizeof(Value));
-//     Class* object_class = (Class*)object_class_obj;
-//     object_class_obj->flags |= FLAG_CLASS;
-//     object_class->name = make_special(SPECIAL_NIL); // Will be set later
-//     object_class->superclass = make_special(SPECIAL_NIL); // Object has no superclass
-//     object_class->methods = make_special(SPECIAL_NIL); // Will be set later
-//     object_class->instance_size = make_int(0); // Default instance size
-
-//     // Store Object class in VM
-//     vm->class_Object = make_object(object_class_obj);
-
-//     // Fix Class's superclass to point to Object
-//     class_class->superclass = vm->class_Object;
-
-//     // Fix Class's class to point to itself
-//     class_class_obj->class = vm->class_Class;
-
-//     // Create other core classes
-//     vm->class_Method = make_object(class_new("Method", vm->class_Object, sizeof(Method) / sizeof(Value)));
-//     vm->class_Array = make_object(class_new("Array", vm->class_Object, 0));
-//     vm->class_String = make_object(class_new("String", vm->class_Object, 0));
-//     vm->class_Symbol = make_object(class_new("Symbol", vm->class_String, 0));
-//     vm->class_Integer = make_object(class_new("Integer", vm->class_Object, 0));
-//     vm->class_Block = make_object(class_new("Block", vm->class_Object, 0));
-
-//     // Now set names for Object and Class
-//     object_class->name = symbol_for("Object");
-//     class_class->name = symbol_for("Class");
-
-//     // Create empty arrays for methods
-//     object_class->methods = array_new(0);
-//     class_class->methods = array_new(0);
-// }
-
 // Clean up VM resources
 void vm_cleanup() {
     if (vm != NULL) {
@@ -311,9 +262,9 @@ Value vm_find_global(const char* name) {
 
     // Search in globals table (linear search for simplicity)
     for (int i = 0; i < MAX_GLOBALS; i++) {
-        if (DBUG) {
-            printf("global[%d]: %d\n", i, vm->globals[i].value);
-        }
+        // if (DBUG) {
+        //     printf("global[%d]: %d\n", i, vm->globals[i].value);
+        // }
 
         if (vm->globals[i].tag != TAG_SPECIAL || vm->globals[i].value != SPECIAL_NIL) {
             // Check if this is a class

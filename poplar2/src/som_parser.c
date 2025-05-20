@@ -475,7 +475,7 @@ static Value parse_class_definition(Parser* parser) {
 
         superclass = vm_find_class(superclass_name);
         if (DBUG) {
-            printf("superclass is %s\n", superclass);
+            printf("superclass is %d\n", superclass.value);
         }
         if (is_nil(superclass)) {
             error_at_previous(parser, "Unknown superclass");
