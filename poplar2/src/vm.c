@@ -53,6 +53,19 @@ void vm_init() {
     vm_bootstrap_core_classes();
 }
 
+// Function to add a class to the globals table
+void register_global_class(const char* name, Value class_obj) {
+    // Find the first empty slot in the globals table
+    for (int i = 0; i < MAX_GLOBALS; i++) {
+        if (is_nil(vm->globals[i])) {
+            vm->globals[i] = class_obj;
+            return;
+        }
+    }
+
+    vm_error("Globals table is full, cannot register class %s", name);
+}
+
 // Create core classes in a mutually recursive way
 void vm_bootstrap_core_classes() {
     // First create Class class
@@ -100,7 +113,93 @@ void vm_bootstrap_core_classes() {
     // Create empty arrays for methods
     object_class->methods = array_new(0);
     class_class->methods = array_new(0);
+
+    // Register all core classes in the globals table
+    register_global_class("Object", vm->class_Object);
+    register_global_class("Class", vm->class_Class);
+    register_global_class("Method", vm->class_Method);
+    register_global_class("Array", vm->class_Array);
+    register_global_class("String", vm->class_String);
+    register_global_class("Symbol", vm->class_Symbol);
+    register_global_class("Integer", vm->class_Integer);
+    register_global_class("Block", vm->class_Block);
+
+    // Create and register singleton instances
+    Object* nil_class_obj = class_new("Nil", vm->class_Object, 0);
+    Object* true_class_obj = class_new("True", vm->class_Object, 0);
+    Object* false_class_obj = class_new("False", vm->class_Object, 0);
+
+    register_global_class("Nil", make_object(nil_class_obj));
+    register_global_class("True", make_object(true_class_obj));
+    register_global_class("False", make_object(false_class_obj));
+
+    // Register singleton instances
+    register_global("nil", vm->nil);
+    register_global("true", vm->true_obj);
+    register_global("false", vm->false_obj);
 }
+
+// Helper to register any global (not just classes)
+void register_global(const char* name, Value value) {
+    // Find the first empty slot in the globals table
+    for (int i = 0; i < MAX_GLOBALS; i++) {
+        if (is_nil(vm->globals[i])) {
+            vm->globals[i] = value;
+            return;
+        }
+    }
+
+    vm_error("Globals table is full, cannot register global %s", name);
+}
+
+// // Create core classes in a mutually recursive way
+// void vm_bootstrap_core_classes() {
+//     // First create Class class
+//     Object* class_class_obj = object_new(make_special(SPECIAL_NIL), sizeof(Class) / sizeof(Value));
+//     Class* class_class = (Class*)class_class_obj;
+//     class_class_obj->flags |= FLAG_CLASS;
+//     class_class->name = make_special(SPECIAL_NIL); // Will be set later
+//     class_class->superclass = make_special(SPECIAL_NIL); // Will be set to Object
+//     class_class->methods = make_special(SPECIAL_NIL); // Will be set later
+//     class_class->instance_size = make_int(sizeof(Object) / sizeof(Value));
+
+//     // Temporarily store Class in VM
+//     vm->class_Class = make_object(class_class_obj);
+
+//     // Now create Object class
+//     Object* object_class_obj = object_new(vm->class_Class, sizeof(Class) / sizeof(Value));
+//     Class* object_class = (Class*)object_class_obj;
+//     object_class_obj->flags |= FLAG_CLASS;
+//     object_class->name = make_special(SPECIAL_NIL); // Will be set later
+//     object_class->superclass = make_special(SPECIAL_NIL); // Object has no superclass
+//     object_class->methods = make_special(SPECIAL_NIL); // Will be set later
+//     object_class->instance_size = make_int(0); // Default instance size
+
+//     // Store Object class in VM
+//     vm->class_Object = make_object(object_class_obj);
+
+//     // Fix Class's superclass to point to Object
+//     class_class->superclass = vm->class_Object;
+
+//     // Fix Class's class to point to itself
+//     class_class_obj->class = vm->class_Class;
+
+//     // Create other core classes
+//     vm->class_Method = make_object(class_new("Method", vm->class_Object, sizeof(Method) / sizeof(Value)));
+//     vm->class_Array = make_object(class_new("Array", vm->class_Object, 0));
+//     vm->class_String = make_object(class_new("String", vm->class_Object, 0));
+//     vm->class_Symbol = make_object(class_new("Symbol", vm->class_String, 0));
+//     vm->class_Integer = make_object(class_new("Integer", vm->class_Object, 0));
+//     vm->class_Block = make_object(class_new("Block", vm->class_Object, 0));
+
+//     // Now set names for Object and Class
+//     object_class->name = symbol_for("Object");
+//     class_class->name = symbol_for("Class");
+
+//     // Create empty arrays for methods
+//     object_class->methods = array_new(0);
+//     class_class->methods = array_new(0);
+// }
 
 // Clean up VM resources
 void vm_cleanup() {
@@ -206,9 +305,16 @@ void vm_collect_garbage() {
 // Find a global variable by name
 Value vm_find_global(const char* name) {
     Value symbol = symbol_for(name);
+    if (DBUG) {
+        printf("vm_find_global for %s\n", name);
+    }
 
     // Search in globals table (linear search for simplicity)
     for (int i = 0; i < MAX_GLOBALS; i++) {
+        if (DBUG) {
+            printf("global[%d]: %d\n", i, vm->globals[i].value);
+        }
+
         if (vm->globals[i].tag != TAG_SPECIAL || vm->globals[i].value != SPECIAL_NIL) {
             // Check if this is a class
             if (is_object(vm->globals[i]) && (as_object(vm->globals[i])->flags & FLAG_CLASS)) {
@@ -313,30 +419,30 @@ void vm_error(const char* format, ...) {
 // Load a SOM file and execute the 'run' method
 Value vm_load_and_run(const char* filename) {
     printf("Loading %s...\n", filename);
-    
+
     // Parse the SOM file
     if (!parse_file(filename)) {
         fprintf(stderr, "Failed to parse SOM file: %s\n", filename);
         return vm->nil;
     }
-    
+
     // Look for Main class
     Value main_class = vm_find_class("Main");
     if (is_nil(main_class)) {
         fprintf(stderr, "Main class not found in %s\n", filename);
         return vm->nil;
     }
-    
+
     // Create main instance
     Value main_instance = make_object(object_new(main_class, 0));
-    
+
     // Look for run method
     Method* run_method = vm_find_method(main_class, "run");
     if (run_method == NULL) {
         fprintf(stderr, "run method not found in Main class\n");
         return vm->nil;
     }
-    
+
     // Invoke run method
     return vm_execute_method(run_method, main_instance, NULL, 0);
 }
@@ -355,7 +461,7 @@ int main(int argc, char** argv) {
 
     // Load SOM file and run
     const char* filename = argv[1];
-    
+
     // If no SOM parser is available or for testing, use this fallback
     if (strstr(filename, "--test-hello") != NULL) {
         // Create test main class

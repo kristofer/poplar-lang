@@ -14,8 +14,8 @@
 #define HEAP_SIZE           0x060000  // 384KB heap
 #define STACK_SIZE          256       // VM execution stack size
 #define FRAME_STACK_SIZE    64        // Max number of frames
-#define MAX_LITERALS        1024      // Global literals table size
-#define MAX_GLOBALS         1024      // Global variables table size
+#define MAX_LITERALS        32 //1024      // Global literals table size
+#define MAX_GLOBALS         16 //1024      // Global variables table size
 
 // Object flags
 #define FLAG_GC_MARK        0x01
@@ -148,6 +148,7 @@ Value vm_execute_method(Method* method, Value receiver, Value* arguments, int ar
 Frame* vm_push_frame(Method* method, Value receiver);
 void vm_pop_frame();
 void vm_bootstrap_core_classes();
+void register_global(const char* name, Value value);
 
 // Memory management
 Object* vm_allocate_object(Value class, uint16_t size);

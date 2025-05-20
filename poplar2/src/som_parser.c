@@ -469,8 +469,14 @@ static Value parse_class_definition(Parser* parser) {
 
         consume(parser, TOKEN_IDENTIFIER, "Expected superclass name");
         char* superclass_name = token_to_string(&parser->previous);
-        superclass = vm_find_class(superclass_name);
+        if (DBUG) {
+            printf("superclass is %s\n", superclass_name);
+        }
 
+        superclass = vm_find_class(superclass_name);
+        if (DBUG) {
+            printf("superclass is %s\n", superclass);
+        }
         if (is_nil(superclass)) {
             error_at_previous(parser, "Unknown superclass");
             free(superclass_name);
@@ -715,12 +721,6 @@ bool parse_string(const char* source, const char* name) {
         printf("parse_string: after init\n");
     }
 
-    // Skip any initial comments at the beginning of the file
-        // while (parser.current.type == TOKEN_COMMENT &&
-        //        parser.current.text[0] == '"') {
-        //     advance_token(&parser);
-        // }
-    // ^^this should be handled by the normal operations;
 
     // Parse the class definition
     Value class = parse_class_definition(&parser);
