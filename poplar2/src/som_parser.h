@@ -4,6 +4,7 @@
 #define POPLAR2_SOM_PARSER_H
 
 #include "vm.h"
+#include "ast.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -80,5 +81,28 @@ void parser_reset_error();
 
 // For debug purposes
 void print_tokens(const char* source);
+
+// Bytecode generation
+
+// Scope information for variable resolution
+typedef struct {
+    Value* local_names;      // Names of local variables
+    int num_locals;          // Number of local variables
+    Value* arg_names;        // Names of arguments
+    int num_args;            // Number of arguments
+    Value* instance_names;   // Names of instance variables (if known)
+    int num_instances;       // Number of instance variables
+} ScopeInfo;
+
+// Forward declaration for code generator functions
+static int generate_bytecode(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
+static int generate_expression(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
+static int generate_message_send(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
+static int generate_variable_access(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
+static int generate_assignment(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
+static int generate_literal(Method* method, AstNode* node, int code_index);
+static int generate_return(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
+static int generate_sequence(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
+static int generate_block(Method* method, AstNode* node, ScopeInfo* scope, int code_index);
 
 #endif /* POPLAR2_SOM_PARSER_H */

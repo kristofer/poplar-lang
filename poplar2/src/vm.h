@@ -16,6 +16,8 @@
 #define FRAME_STACK_SIZE    64        // Max number of frames
 #define MAX_LITERALS        32 //1024      // Global literals table size
 #define MAX_GLOBALS         16 //1024      // Global variables table size
+// Define a maximum bytecode size (add this to vm.h)
+#define MAX_BYTECODE_SIZE 256  // Or whatever size is appropriate for your VM
 
 // Object flags
 #define FLAG_GC_MARK        0x01
